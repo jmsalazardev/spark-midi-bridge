@@ -1,5 +1,7 @@
 # Spark MIDI Bridge
 
+![Spark MIDI Bridge Banner](assets/images/banner.png)
+
 The **Spark MIDI Bridge** is a lightweight application designed to bridge MIDI controllers (such as foot pedals) with Positive Grid **Spark** amplifiers. It allows guitarists to control presets and settings on their Spark amps using generic MIDI hardware.
 
 The application is written in Rust and highly optimized to run reliably on low-resource hardware like the **Raspberry Pi Zero (ARMv6 / Single-Core)**.
