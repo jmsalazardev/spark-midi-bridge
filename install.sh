@@ -41,7 +41,7 @@ echo "📝 Generating systemd service at $SERVICE_FILE..."
 cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=Spark MIDI Bridge
-After=bluetooth.target sound.target dbus.service
+After=bluetooth.service sound.target dbus.service
 Wants=bluetooth.target
 
 [Service]
