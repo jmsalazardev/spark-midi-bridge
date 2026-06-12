@@ -1,6 +1,6 @@
 [package]
 name = "spark_midi_bridge"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["jmsalazar"]
 description = "Headless Spark MIDI Bridge for Raspberry Pi Zero"
