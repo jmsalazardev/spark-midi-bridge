@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      # 1. Build Windows x86_64 target
+      - name: Build Windows Target
+        run: |
+          cross build --target x86_64-pc-windows-gnu --release
+
+      # 2. Build Linux x86_64 target
+      - name: Build Linux Target
+        run: |
+          cross build --target x86_64-unknown-linux-gnu --release
+
+      # 3. Build & Package Raspberry Pi Zero target (ARMv6)
+      - name: Build & Package Raspberry Pi Zero Target
+        run: |
+          chmod +x package.sh
+          chmod +x build.sh
+          ./package.sh
+
+      # 4. Prepare files for upload
+      - name: Prepare Assets
+        run: |
+          mkdir assets
+          cp target/x86_64-pc-windows-gnu/release/spark_midi_bridge.exe assets/spark_midi_bridge_windows_x64.exe
+          cp target/x86_64-unknown-linux-gnu/release/spark_midi_bridge assets/spark_midi_bridge_linux_x64
+          cp spark_midi_bridge.tar.gz assets/spark_midi_bridge_rpi_zero.tar.gz
+
+      # 5. Create Draft Release on GitHub and upload assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            assets/spark_midi_bridge_windows_x64.exe
+            assets/spark_midi_bridge_linux_x64
+            assets/spark_midi_bridge_rpi_zero.tar.gz
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
