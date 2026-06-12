@@ -8,6 +8,7 @@ use std::error::Error;
 use std::io::{self, Write};
 use crate::config::AppConfig;
 use dialoguer::{Select, theme::ColorfulTheme, console::style};
+#[cfg(target_os = "linux")]
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 pub fn scan_and_select_midi() -> Result<String, Box<dyn Error>> {
@@ -83,11 +84,13 @@ pub async fn map_midi_buttons(midi_name: &str, config: &mut AppConfig) -> Result
         }
     }, ())?;
     
+    #[cfg(target_os = "linux")]
     let mut stdin_reader = BufReader::new(tokio::io::stdin());
     let presets = ["Preset 1", "Preset 2", "Preset 3", "Preset 4"];
     
     for preset in &presets {
         println!("\n{}", style(format!("Press the button on your pedal for {}.", preset)).yellow().bold());
+        #[cfg(target_os = "linux")]
         println!("{}", style("   (Or press Enter on the keyboard to skip)").dim());
         print!("{}", style("Waiting for button press... ").dim());
         io::stdout().flush()?;
@@ -95,15 +98,27 @@ pub async fn map_midi_buttons(midi_name: &str, config: &mut AppConfig) -> Result
         // Vaciar cualquier entrada MIDI previa para evitar registrar pulsaciones pasadas accidentalmente
         while rx.try_recv().is_ok() {}
         
-        let mut input_line = String::new();
-        tokio::select! {
-            Some(btn_id) = rx.recv() => {
+        #[cfg(target_os = "linux")]
+        {
+            let mut input_line = String::new();
+            tokio::select! {
+                Some(btn_id) = rx.recv() => {
+                    let key = format!("btn{}", btn_id);
+                    config.mappings.insert(key, preset.to_string());
+                    println!("\n{}", style(format!("Button detected! Button ID [{}] assigned to {}", btn_id, preset)).green().bold());
+                }
+                _ = stdin_reader.read_line(&mut input_line) => {
+                    println!("{}", style(format!("{} skipped.", preset)).yellow());
+                }
+            }
+        }
+        
+        #[cfg(not(target_os = "linux"))]
+        {
+            if let Some(btn_id) = rx.recv().await {
                 let key = format!("btn{}", btn_id);
                 config.mappings.insert(key, preset.to_string());
                 println!("\n{}", style(format!("Button detected! Button ID [{}] assigned to {}", btn_id, preset)).green().bold());
-            }
-            _ = stdin_reader.read_line(&mut input_line) => {
-                println!("{}", style(format!("{} skipped.", preset)).yellow());
             }
         }
     }

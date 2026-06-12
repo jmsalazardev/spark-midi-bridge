@@ -1,11 +1,18 @@
-use tokio::time::{sleep, Duration};
-use log::{info, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use log::info;
+
+#[cfg(target_os = "linux")]
+use std::sync::atomic::Ordering;
+#[cfg(target_os = "linux")]
+use tokio::time::{sleep, Duration};
+#[cfg(target_os = "linux")]
+use log::warn;
 
 /// Spawns a background task to manage the physical status LED via GPIO.
 /// Blinks slowly (500ms) if one or both connections are down.
 /// Solid on (200ms check) if both are connected.
+#[cfg(target_os = "linux")]
 pub fn spawn_led_task(
     led_pin_num: u8,
     spark_ready: Arc<AtomicBool>,
@@ -44,5 +51,17 @@ pub fn spawn_led_task(
                 warn!("Could not initialize GPIO interface (rppal): {}. Running without physical LED status.", e);
             }
         }
+    })
+}
+
+/// Dummy spawn_led_task implementation for non-Linux OS targets where physical GPIO is not available.
+#[cfg(not(target_os = "linux"))]
+pub fn spawn_led_task(
+    _led_pin_num: u8,
+    _spark_ready: Arc<AtomicBool>,
+    _midi_ready: Arc<AtomicBool>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        info!("Physical status LED is not supported on this platform.");
     })
 }

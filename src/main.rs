@@ -13,24 +13,64 @@ use log::{info, error};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Initialize logging immediately
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let args: Vec<String> = std::env::args().collect();
     let config = AppConfig::load();
 
-    if args.contains(&"--configure".to_string()) 
-        || args.contains(&"-c".to_string()) 
-        || !config.is_valid() 
-    {
-        if let Err(e) = configurator::run_configurator().await {
-            eprintln!("Error running configurator: {}", e);
+    let has_config = config.is_valid();
+    let want_configure = args.contains(&"--configure".to_string()) || args.contains(&"-c".to_string());
+
+    if want_configure {
+        match configurator::run_configurator().await {
+            Ok(configurator::ConfiguratorResult::SaveAndRun) => {
+                // Continue running the bridge
+            }
+            Ok(configurator::ConfiguratorResult::SaveAndExit) => {
+                return Ok(());
+            }
+            Ok(configurator::ConfiguratorResult::Exit) => {
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("Error running configurator: {}", e);
+                return Err(e);
+            }
         }
-        return Ok(());
+    } else if !has_config {
+        // En Windows, o si estamos en una terminal interactiva (user_attended), iniciamos el wizard
+        if cfg!(target_os = "windows") || dialoguer::console::user_attended() {
+            println!("No valid configuration found. Launching configuration wizard...");
+            match configurator::run_configurator().await {
+                Ok(configurator::ConfiguratorResult::SaveAndRun) => {
+                    // Continue running the bridge
+                }
+                Ok(configurator::ConfiguratorResult::SaveAndExit) => {
+                    return Ok(());
+                }
+                Ok(configurator::ConfiguratorResult::Exit) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Error running configurator: {}", e);
+                    return Err(e);
+                }
+            }
+        } else {
+            // En Linux sin terminal (ej. corriendo como servicio), logueamos el error y terminamos con error
+            error!("Configuration file '{}' is missing or invalid. Please run the configurator first using --configure.", config::CONFIG_FILE);
+            return Err("Missing or invalid configuration file".into());
+        }
     }
 
     println!("=== DEBUG: main start ===");
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     info!("=========================================");
     info!("STARTING SPARK MIDI HEADLESS            ");
     info!("=========================================");
+
+    // Reload the config in case it was created/modified by the configurator
+    let config = AppConfig::load();
 
     let spark_mac = config.spark_mac.clone();
     let midi_name = config.midi_name.clone();

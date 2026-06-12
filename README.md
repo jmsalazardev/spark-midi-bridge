@@ -33,17 +33,23 @@ The project follows a modular architecture:
 
 ---
 
-## 🛠️ 1. Cross-Compilation
+## 🛠️ 1. Compilation & Targets
 
-To compile the binary for the Raspberry Pi Zero (ARMv6) architecture without dynamic linking issues (such as Glibc or D-Bus version mismatches), we use `cross` and Docker.
+The application can be compiled for several target architectures. To compile without dynamic linking issues (such as Glibc or D-Bus version mismatches) when cross-compiling, we recommend using `cross` and Docker.
 
-### Prerequisites
+### 🎯 Supported Targets
+
+* **Raspberry Pi Zero (ARMv6 / Single-Core)**: `arm-unknown-linux-gnueabihf` (runs the bridge in headless/service mode)
+* **Windows (64-bit)**: `x86_64-pc-windows-gnu` (runs the bridge on a Windows PC with native Bluetooth LE MIDI support)
+* **Linux x86_64 (64-bit)**: `x86_64-unknown-linux-gnu` (runs the bridge on a 64-bit Linux desktop/server or Raspberry Pi 4/5 running a 64-bit OS)
+
+### Prerequisites (for Cross-Compilation)
 Make sure you have Docker running and `cross` installed:
 ```bash
 cargo install cross --git https://github.com/cross-rs/cross
 ```
 
-### Build in Release Mode
+### 🍓 Compiling for Raspberry Pi Zero (ARMv6)
 You can compile the binary for your configured target using the automated build script:
 ```bash
 chmod +x build.sh
@@ -57,6 +63,42 @@ cross build --target arm-unknown-linux-gnueabihf --release
 ```
 The compiled binary will be generated at:
 `target/arm-unknown-linux-gnueabihf/release/spark_midi_bridge`
+
+### 🖥️ Compiling for Windows
+The Windows build automatically integrates native Bluetooth MIDI (BLE MIDI) support via the Windows WinRT API.
+
+#### Method A: Cross-Compiling from Linux (using `cross`)
+```bash
+cross build --target x86_64-pc-windows-gnu --release
+```
+The compiled executable will be generated at:
+`target/x86_64-pc-windows-gnu/release/spark_midi_bridge.exe`
+
+#### Method B: Natively on Windows
+Install Rust on Windows and run the following command in terminal/command prompt:
+```cmd
+cargo build --release
+```
+The compiled executable will be generated at:
+`target\release\spark_midi_bridge.exe`
+
+### 🐧 Compiling for Linux x86_64
+You can compile the binary to run natively on a Linux desktop/server or 64-bit Raspberry Pi.
+
+#### Method A: Natively on Linux x86_64
+If you are already on a Linux x86_64 machine, run:
+```bash
+cargo build --release
+```
+The compiled binary will be generated at:
+`target/release/spark_midi_bridge`
+
+#### Method B: Cross-Compiling from Linux to another target architecture
+```bash
+cross build --target x86_64-unknown-linux-gnu --release
+```
+The compiled binary will be generated at:
+`target/x86_64-unknown-linux-gnu/release/spark_midi_bridge`
 
 ### 📦 Package a Distributable Bundle (Recommended)
 Alternatively, you can compile the binary and bundle it automatically with the `install.sh` and `uninstall.sh` helper scripts into a single compressed tarball `spark_midi_bridge.tar.gz` by running:
@@ -116,8 +158,10 @@ The configurator runs a step-by-step wizard to guide you through the initial set
 
 ### Wizard Actions:
 After Step 3, a **Configuration Summary** is displayed showing your paired devices and current button mappings. You will then be prompted to select an action using your keyboard's arrow keys:
-* **Save and exit**: Saves all settings to `spark_config.json` in the executable's directory and exits the configurator.
+* **Save & Run**: Saves all settings to `spark_config.json` and immediately launches the bridge (starts the Spark BLE and MIDI listener loops).
+* **Save & Exit**: Saves all settings to `spark_config.json` and exits the program (ideal if you only wanted to configure it for a background service).
 * **Start over**: Discards the current selections and restarts the wizard from Step 1.
+* **Exit (without saving)**: Exits the configurator immediately and discards any changes.
 
 
 ---
@@ -291,5 +335,15 @@ To verify the connection, list the ALSA Sequencer ports:
 aconnect -l
 ```
 You should see `FootCtrlPlus` listed in the output. You can then run the configuration wizard (`./spark_midi_bridge --configure` from `/opt/spark-midi-bridge`) and select `FootCtrlPlus` (during Step 2/3) to configure and map the pedal.
+
+### E. Bluetooth MIDI (BLE MIDI) on Windows
+
+The Windows build utilizes the Windows WinRT (UWP) MIDI backend natively (enabled via the `winrt` feature of `midir` in Cargo.toml).
+
+To use a Bluetooth MIDI pedal (such as the M-Vave Chocolate) on Windows:
+1. Open Windows Settings, navigate to **Bluetooth & devices**, and pair/connect your pedal (e.g., `FootCtrlPlus`).
+2. Verify that the device status shows as **Connected** before starting the bridge or the configurator.
+3. Run the configuration wizard: `spark_midi_bridge.exe --configure`
+4. In **Step 2/3**, the WinRT MIDI backend will scan and list your connected Bluetooth MIDI device.
 
 

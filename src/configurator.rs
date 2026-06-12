@@ -4,8 +4,15 @@ use crate::spark::scan_and_select_spark;
 use crate::midi::{scan_and_select_midi, map_midi_buttons};
 use dialoguer::{Select, theme::ColorfulTheme, console::style};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfiguratorResult {
+    SaveAndRun,
+    SaveAndExit,
+    Exit,
+}
+
 /// Runs the interactive CLI wizard for initial device setup and button mapping.
-pub async fn run_configurator() -> Result<(), Box<dyn Error>> {
+pub async fn run_configurator() -> Result<ConfiguratorResult, Box<dyn Error>> {
     let mut config = AppConfig::load();
     
     loop {
@@ -18,7 +25,7 @@ pub async fn run_configurator() -> Result<(), Box<dyn Error>> {
         let (spark_mac, spark_name) = scan_and_select_spark().await?;
         if spark_mac.is_empty() {
             println!("{}", style("Configuration cancelled.").red());
-            return Ok(());
+            return Ok(ConfiguratorResult::Exit);
         }
         config.spark_mac = spark_mac.clone();
         config.spark_name = spark_name.clone();
@@ -29,7 +36,7 @@ pub async fn run_configurator() -> Result<(), Box<dyn Error>> {
         let midi_name = scan_and_select_midi()?;
         if midi_name.is_empty() {
             println!("{}", style("Configuration cancelled.").red());
-            return Ok(());
+            return Ok(ConfiguratorResult::Exit);
         }
         config.midi_name = midi_name.clone();
         println!("\n{}", style(format!("Selected MIDI Pedal: {}", midi_name)).green().bold());
@@ -64,7 +71,12 @@ pub async fn run_configurator() -> Result<(), Box<dyn Error>> {
         }
         println!("{}", style("==========================================").cyan());
         
-        let options = vec!["Save and exit", "Start over"];
+        let options = vec![
+            "Save & Run",
+            "Save & Exit",
+            "Start over",
+            "Exit (without saving)",
+        ];
         let choice = tokio::task::spawn_blocking(move || {
             Select::with_theme(&ColorfulTheme::default())
                 .with_prompt("Choose an action")
@@ -76,16 +88,27 @@ pub async fn run_configurator() -> Result<(), Box<dyn Error>> {
         if choice == 0 {
             if let Err(e) = config.save() {
                 println!("{}", style(format!("Error saving configuration: {}", e)).red());
+                return Err(e);
             } else {
                 println!("{}", style("Configuration saved successfully to spark_config.json.").green().bold());
             }
-            println!("{}", style("Exiting configuration. Start the bridge normally to use it.").green());
-            break;
-        } else {
+            println!("{}", style("Launching the bridge service...").green());
+            return Ok(ConfiguratorResult::SaveAndRun);
+        } else if choice == 1 {
+            if let Err(e) = config.save() {
+                println!("{}", style(format!("Error saving configuration: {}", e)).red());
+                return Err(e);
+            } else {
+                println!("{}", style("Configuration saved successfully to spark_config.json.").green().bold());
+            }
+            println!("{}", style("Exiting configurator. Start the bridge normally to use it.").green());
+            return Ok(ConfiguratorResult::SaveAndExit);
+        } else if choice == 2 {
             println!("\n{}", style("Restarting configuration wizard...").yellow());
             continue;
+        } else {
+            println!("{}", style("Configuration discarded. Exiting.").yellow());
+            return Ok(ConfiguratorResult::Exit);
         }
     }
-    
-    Ok(())
 }
