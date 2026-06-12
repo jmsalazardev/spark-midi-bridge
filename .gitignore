@@ -1,0 +1,19 @@
+# Rust build artifacts
+target/
+
+# Local configuration files (contains MAC addresses and custom pedal mapping)
+spark_config.json
+
+# Typo or backup file generated during SCP testing
+jmsalazardev@*
+*.rs.bk
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local environment variables
+.env
+

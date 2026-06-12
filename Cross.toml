@@ -1,0 +1,8 @@
+[target.arm-unknown-linux-gnueabihf]
+dockerfile = "./Dockerfile"
+
+[target.arm-unknown-linux-gnueabihf.env]
+passthrough = [
+    "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig",
+    "PKG_CONFIG_ALLOW_CROSS=1"
+]
