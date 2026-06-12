@@ -51,7 +51,7 @@ jobs:
 
       # 5. Create Draft Release on GitHub and upload assets
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             assets/spark_midi_bridge-${{ github.ref_name }}-windows_x64.exe
