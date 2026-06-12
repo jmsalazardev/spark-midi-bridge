@@ -42,11 +42,12 @@ pub async fn run_configurator() -> Result<ConfiguratorResult, Box<dyn Error>> {
         println!("\n{}", style(format!("Selected MIDI Pedal: {}", midi_name)).green().bold());
         
         // --- STEP 3: Map Buttons ---
-        println!("\n{}", style("[Step 3/3] Map pedal buttons").yellow().bold());
-        // Clear previous button mappings for a fresh config run
-        config.mappings.retain(|k, _| !k.starts_with("btn"));
+        println!("\n{}", style("[Step 3/3] Map pedal buttons & Expression pedal").yellow().bold());
+        // Clear previous mappings for a fresh config run
+        config.mappings.retain(|k, _| !k.starts_with("btn") && !k.starts_with("cc"));
         
         map_midi_buttons(&midi_name, &mut config).await?;
+        crate::midi::map_midi_expression(&midi_name, &mut config).await?;
         
         // --- SUMMARY & EXIT/RESTART ---
         println!("\n{}", style("==========================================").cyan());
@@ -68,6 +69,16 @@ pub async fn run_configurator() -> Result<ConfiguratorResult, Box<dyn Error>> {
                 Some(btn_id) => println!("  - Preset {}: {} {}", preset_num, style("Button").green(), style(btn_id).green().bold()),
                 None => println!("  - Preset {}: {}", preset_num, style("Not assigned").dim()),
             }
+        }
+
+        println!("{}", style("Expression pedal mappings:").bold());
+        let cc_mappings = config.get_cc_mappings();
+        if !cc_mappings.is_empty() {
+            for (cc_num, target) in &cc_mappings {
+                println!("  - {}: {} {}", style(target).bold(), style("MIDI CC").green(), style(cc_num).green().bold());
+            }
+        } else {
+            println!("  - Expression Pedal: {}", style("Not assigned").dim());
         }
         println!("{}", style("==========================================").cyan());
         

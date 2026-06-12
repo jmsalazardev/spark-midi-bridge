@@ -14,6 +14,8 @@ pub struct AppConfig {
     pub midi_name: String,
     #[serde(default = "default_led_pin")]
     pub led_pin: u8,
+    #[serde(default = "default_preset_amps")]
+    pub preset_amps: HashMap<String, String>,
     
     #[serde(flatten)]
     pub mappings: HashMap<String, String>,
@@ -23,6 +25,15 @@ fn default_led_pin() -> u8 {
     17
 }
 
+fn default_preset_amps() -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    map.insert("Preset 1".to_string(), "RolandJC120".to_string());
+    map.insert("Preset 2".to_string(), "94MatchDCV2".to_string());
+    map.insert("Preset 3".to_string(), "Twin".to_string());
+    map.insert("Preset 4".to_string(), "SLO100".to_string());
+    map
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -30,6 +41,7 @@ impl Default for AppConfig {
             spark_name: String::new(),
             midi_name: String::new(),
             led_pin: default_led_pin(),
+            preset_amps: default_preset_amps(),
             mappings: HashMap::new(),
         }
     }
@@ -65,6 +77,19 @@ impl AppConfig {
             if k.starts_with("btn") {
                 if let Ok(btn_id) = k[3..].parse::<u8>() {
                     map.insert(btn_id, v.clone());
+                }
+            }
+        }
+        map
+    }
+
+    /// Extract key-value CC mappings (e.g. "cc7" -> "Volume") and parse them into a HashMap of CC number -> target parameter.
+    pub fn get_cc_mappings(&self) -> HashMap<u8, String> {
+        let mut map = HashMap::new();
+        for (k, v) in &self.mappings {
+            if k.starts_with("cc") {
+                if let Ok(cc_num) = k[2..].parse::<u8>() {
+                    map.insert(cc_num, v.clone());
                 }
             }
         }
@@ -109,6 +134,19 @@ mod tests {
         assert_eq!(btn_map.len(), 2);
         assert_eq!(btn_map.get(&12), Some(&"Preset 1".to_string()));
         assert_eq!(btn_map.get(&14), Some(&"Preset 2".to_string()));
+    }
+
+    #[test]
+    fn test_get_cc_mappings() {
+        let mut config = AppConfig::default();
+        config.mappings.insert("cc7".to_string(), "Volume".to_string());
+        config.mappings.insert("cc11".to_string(), "Expression".to_string());
+        config.mappings.insert("btn12".to_string(), "Preset 1".to_string());
+
+        let cc_map = config.get_cc_mappings();
+        assert_eq!(cc_map.len(), 2);
+        assert_eq!(cc_map.get(&7), Some(&"Volume".to_string()));
+        assert_eq!(cc_map.get(&11), Some(&"Expression".to_string()));
     }
 }
 

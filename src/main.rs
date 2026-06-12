@@ -74,10 +74,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let spark_mac = config.spark_mac.clone();
     let midi_name = config.midi_name.clone();
-    let mapping = config.get_button_mappings();
+    let button_mapping = config.get_button_mappings();
+    let cc_mapping = config.get_cc_mappings();
+    let preset_amps = config.preset_amps.clone();
     let led_pin_num = config.led_pin;
 
-    let (tx, mut rx) = mpsc::channel::<u8>(100);
+    let (tx, mut rx) = mpsc::channel::<midi::MidiEvent>(100);
 
     let spark_ready = Arc::new(AtomicBool::new(false));
     let midi_ready = Arc::new(AtomicBool::new(false));
@@ -88,7 +90,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Start Bluetooth BLE engine task
     let spark_ready_task = spark_ready.clone();
     let spark_task = tokio::spawn(async move {
-        if let Err(e) = spark::spark_connection_loop(&mut rx, spark_mac, mapping, spark_ready_task).await {
+        if let Err(e) = spark::spark_connection_loop(
+            &mut rx,
+            spark_mac,
+            button_mapping,
+            cc_mapping,
+            preset_amps,
+            spark_ready_task,
+        ).await {
             error!("BLE Engine error: {}", e);
         }
     });
